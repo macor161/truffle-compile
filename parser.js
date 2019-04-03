@@ -7,7 +7,7 @@ var preReleaseCompilerWarning =
 
 module.exports = {
   // This needs to be fast! It is fast (as of this writing). Keep it fast!
-  parseImports: function(body, solc) {
+  parseImports: function(body, solc, preParser) {
     // WARNING: Kind of a hack (an expedient one).
 
     // So we don't have to maintain a separate parser, we'll get all the imports
@@ -16,6 +16,9 @@ module.exports = {
     // compilation when a file has no import statements, we inject an import
     // statement right on the end; just to ensure it will error and we can parse
     // the imports speedily without doing extra work.
+
+    if (typeof preParser === 'function')
+      body = preParser(body)
 
     // If we're using docker/native, we'll still want to use solcjs to do this part.
     if (solc.importsParser) solc = solc.importsParser;
