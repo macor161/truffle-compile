@@ -11,6 +11,10 @@ const find_contracts = require("truffle-contract-sources");
 const semver = require("semver");
 const debug = require("debug")("compile:profiler"); // eslint-disable-line no-unused-vars
 
+// Preparser for the getImports function
+// Remove every line that doesn't begin with 'import' or 'pragma'
+const preParser = body => body.replace(/(^(?!(\s*)import)(?!(\s*)pragma)[^\n]*)/gm, '')
+
 module.exports = {
   updated(options, callback) {
     expect.options(options, ["resolver"]);
@@ -384,7 +388,7 @@ module.exports = {
     // No imports in vyper!
     if (path.extname(file) === ".vy") return [];
 
-    const imports = Parser.parseImports(body, solc);
+    const imports = Parser.parseImports(body, solc, preParser);
 
     // Convert explicitly relative dependencies of modules back into module paths.
     return imports.map(
