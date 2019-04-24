@@ -7,6 +7,7 @@ const expect = require("truffle-expect");
 const find_contracts = require("truffle-contract-sources");
 const Config = require("truffle-config");
 const semver = require("semver");
+const detailedError = require('./detailederror');
 const debug = require("debug")("compile"); // eslint-disable-line no-unused-vars
 
 // Most basic of the compile commands. Takes a hash of sources, where
@@ -134,6 +135,7 @@ const compile = function(sources, options, callback) {
       const standardOutput = JSON.parse(result);
 
       let errors = standardOutput.errors || [];
+
       let warnings = [];
 
       if (options.strict !== true) {
@@ -153,16 +155,17 @@ const compile = function(sources, options, callback) {
 
       if (errors.length > 0) {
         options.logger.log("");
-        errors = errors.map(error => error.formattedMessage).join();
-        if (errors.includes("requires different compiler version")) {
-          const contractSolcVer = errors.match(/pragma solidity[^;]*/gm)[0];
-          const configSolcVer =
-            options.compilers.solc.version || semver.valid(solc.version());
-          errors = errors.concat(
-            `\nError: Truffle is currently using solc ${configSolcVer}, but one or more of your contracts specify "${contractSolcVer}".\nPlease update your truffle config or pragma statement(s).\n(See https://truffleframework.com/docs/truffle/reference/configuration#compiler-configuration for information on\nconfiguring Truffle to use a specific solc compiler version.)`
-          );
-        }
-        return callback(new CompileError(errors));
+        // TODO: Add back the truffle error
+        // errors = errors.map(error => error.formattedMessage).join();
+        // if (errors.includes("requires different compiler version")) {
+        //   const contractSolcVer = errors.match(/pragma solidity[^;]*/gm)[0];
+        //   const configSolcVer =
+        //     options.compilers.solc.version || semver.valid(solc.version());
+        //   errors = errors.concat(
+        //     `\nError: Truffle is currently using solc ${configSolcVer}, but one or more of your contracts specify "${contractSolcVer}".\nPlease update your truffle config or pragma statement(s).\n(See https://truffleframework.com/docs/truffle/reference/configuration#compiler-configuration for information on\nconfiguring Truffle to use a specific solc compiler version.)`
+        //   );
+        // }
+        return Promise.all(errors.map(err => detailedError(err))).then(callback)
       }
 
       var contracts = standardOutput.contracts;
@@ -173,7 +176,7 @@ const compile = function(sources, options, callback) {
         files[source.id] = originalPathMappings[filename];
       });
 
-      var returnVal = {};
+      var returnVal = { };
 
       // This block has comments in it as it's being prepared for solc > 0.4.10
       Object.keys(contracts).forEach(source_path => {
@@ -259,7 +262,9 @@ const compile = function(sources, options, callback) {
 
       const compilerInfo = { name: "solc", version: solc.version() };
 
-      callback(null, returnVal, files, compilerInfo);
+      Promise.all(warnings.map(warn => detailedError(warn)))
+        .then(warnings => callback(null, returnVal, files, compilerInfo, warnings))
+      
     })
     .catch(callback);
 };
@@ -354,9 +359,10 @@ function orderABI(contract) {
 // quiet: Boolean. Suppress output. Defaults to false.
 // strict: Boolean. Return compiler warnings as errors. Defaults to false.
 compile.all = function(options, callback) {
+  debug('compile.all started')
   find_contracts(options.contracts_directory, function(err, files) {
     if (err) return callback(err);
-
+    debug(`files: ${files}`)
     options.paths = files;
     compile.with_dependencies(options, callback);
   });
@@ -406,6 +412,9 @@ compile.with_dependencies = function(options, callback) {
     }),
     (err, allSources, required) => {
       if (err) return callback(err);
+      for (key in allSources) {
+        debug(`dependencies fetched: ${key}`)
+      }
 
       var hasTargets = required.length;
 
