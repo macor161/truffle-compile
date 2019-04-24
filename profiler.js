@@ -191,9 +191,12 @@ module.exports = {
 
     const resolver = options.resolver;
 
+    debug(`required_sources`)
     // Fetch the whole contract set
     find_contracts(options.contracts_directory, (err, allPaths) => {
       if (err) return callback(err);
+
+      
 
       // Solidity test files might have been injected. Include them in the known set.
       options.paths.forEach(_path => {
@@ -211,18 +214,20 @@ module.exports = {
 
       const allSources = {};
       const compilationTargets = [];
-
+      debug('loading CompilerSupplier')
       // Load compiler
       const supplier = new CompilerSupplier(options.compilers.solc);
       supplier
         .load()
         .then(async solc => {
+          debug('CompilerSupplier loaded')
           // Get all the source code
           const resolved = await self.resolveAllSources(
             resolver,
             allPaths,
             solc
           );
+          debug(`Sources resolved: `)
           // Generate hash of all sources including external packages - passed to solc inputs.
           const resolvedPaths = Object.keys(resolved);
           resolvedPaths.forEach(file => {
@@ -299,6 +304,7 @@ module.exports = {
   // Resolves sources in several async passes. For each resolved set it detects unknown
   // imports from external packages and adds them to the set of files to resolve.
   async resolveAllSources(resolver, initialPaths, solc) {
+    debug('resolveAllSources')
     const self = this;
     const mapping = {};
     const allPaths = initialPaths.slice();
@@ -323,6 +329,7 @@ module.exports = {
         } else {
           file = candidate;
         }
+        //debug(`file: ${file} - parent: ${parent}`)
         const promise = new Promise((accept, reject) => {
           resolver.resolve(file, parent, (err, body, absolutePath, source) => {
             err ? reject(err) : accept({ file: absolutePath, body, source });
@@ -335,7 +342,7 @@ module.exports = {
       // imports and add those to the list of paths to resolve if we don't have it.
       Promise.all(promises)
         .then(results => {
-          // Generate the sources mapping
+                    // Generate the sources mapping
           results.forEach(
             item => (mapping[item.file] = Object.assign({}, item))
           );
@@ -348,6 +355,7 @@ module.exports = {
             let imports;
             try {
               imports = self.getImports(result.file, result, solc);
+              mapping[result.file].imports = imports
             } catch (err) {
               if (err.message.includes("requires different compiler version")) {
                 const contractSolcVer = err.message.match(
@@ -377,6 +385,8 @@ module.exports = {
     return new Promise((resolve, reject) => {
       async.whilst(() => allPaths.length, generateMapping, error => {
         if (error) reject(new Error(error));
+        for (const key in mapping)
+          debug(`dependency: ${key}: ${mapping[key].imports}`)
         resolve(mapping);
       });
     });
@@ -389,7 +399,7 @@ module.exports = {
     if (path.extname(file) === ".vy") return [];
 
     const imports = Parser.parseImports(body, solc, preParser);
-
+    debug(`imports for ${file}: ${imports}`)
     // Convert explicitly relative dependencies of modules back into module paths.
     return imports.map(
       dependencyPath =>

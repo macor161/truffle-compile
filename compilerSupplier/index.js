@@ -1,6 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 const semver = require("semver");
+const debug = require('debug')('compiler-supplier')
 
 const {
   Bundled,
@@ -57,18 +58,24 @@ class CompilerSupplier {
 
       if (useDocker) {
         strategy = new Docker(this.strategyOptions);
+        debug(`compile strategy: Docker`)
       } else if (useNative) {
         strategy = new Native(this.strategyOptions);
+        debug(`compile strategy: Native`)
       } else if (useBundledSolc) {
         strategy = new Bundled(this.strategyOptions);
+        debug(`compile strategy: Bundled`)
       } else if (useSpecifiedLocal) {
         strategy = new Local(this.strategyOptions);
+        debug(`compile strategy: Local`)
       } else if (isValidVersionRange) {
         if (this.config.compilerRoots) {
           this.strategyOptions.compilerRoots = this.config.compilerRoots;
         }
         strategy = new VersionRange(this.strategyOptions);
+        debug(`compile strategy: VersionRange`)
       }
+      
 
       if (strategy) {
         try {
