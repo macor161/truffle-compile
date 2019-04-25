@@ -1,3 +1,4 @@
+require('v8-compile-cache')
 const OS = require("os");
 const path = require("path");
 const Profiler = require("./profiler");
@@ -9,6 +10,8 @@ const Config = require("truffle-config");
 const semver = require("semver");
 const detailedError = require('./detailederror');
 const debug = require("debug")("compile"); // eslint-disable-line no-unused-vars
+const { fork } = require('child_process')
+
 
 // Most basic of the compile commands. Takes a hash of sources, where
 // the keys are file or module paths and the values are the bodies of
@@ -125,14 +128,16 @@ const compile = function(sources, options, callback) {
   });
 
   // Load solc module only when compilation is actually required.
-  const supplier = new CompilerSupplier(options.compilers.solc);
 
-  supplier
-    .load()
-    .then(solc => {
-      const result = solc.compile(JSON.stringify(solcStandardInput));
+  
+  
+  
+  const onCompiled = (standardOutput) => {
+    debug(`compiled ${JSON.stringify(standardOutput)}`)
+    //const result = solc.compile(JSON.stringify(solcStandardInput));
+      //debug('compiled')
 
-      const standardOutput = JSON.parse(result);
+      //const standardOutput = JSON.parse(result);
 
       let errors = standardOutput.errors || [];
 
@@ -204,7 +209,8 @@ const compile = function(sources, options, callback) {
             unlinked_binary: "0x" + contract.evm.bytecode.object, // deprecated
             compiler: {
               name: "solc",
-              version: solc.version()
+              //version: solc.version()
+              version: '0.5.0'
             },
             devdoc: contract.devdoc,
             userdoc: contract.userdoc
@@ -260,13 +266,79 @@ const compile = function(sources, options, callback) {
         });
       });
 
-      const compilerInfo = { name: "solc", version: solc.version() };
+      //const compilerInfo = { name: "solc", version: solc.version() };
+      const compilerInfo = { name: "solc", version: '0.5.0' };
 
       Promise.all(warnings.map(warn => detailedError(warn)))
         .then(warnings => callback(null, returnVal, files, compilerInfo, warnings))
       
-    })
-    .catch(callback);
+  }
+
+  debug('creating process')
+  let result = null
+
+  const p1 = ['openzeppelin-solidity/contracts/math/SafeMath.sol',
+  'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol',
+  '/home/mathew/workspace/eblocks/eblocks/contracts/ERC20.sol',
+  '/home/mathew/workspace/eblocks/eblocks/contracts/Test.sol']
+  const p2 = ['/home/mathew/workspace/eblocks/eblocks/contracts/Migrations.sol',
+  '/home/mathew/workspace/eblocks/eblocks/contracts/Test2.sol',
+  '/home/mathew/workspace/eblocks/eblocks/contracts/Test3.sol',
+  '/home/mathew/workspace/eblocks/eblocks/contracts/Test4.sol',]
+  
+  const myProcess1 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+  const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+  
+  const input1 = { 
+    input: {
+      language: solcStandardInput.language,
+      options: solcStandardInput.options,
+      sources: p1.reduce((acc, v) => ({ ...acc, [v]: solcStandardInput.sources[v] }), {}),
+    },
+    p: 1
+  }
+  const input2 = { 
+    input: {
+      language: solcStandardInput.language,
+      options: solcStandardInput.options,
+      sources: p2.reduce((acc, v) => ({ ...acc, [v]: solcStandardInput.sources[v] }), {}),
+    },
+    p: 2
+  }
+
+  //for (const key in solcStandardInput)
+  //  debug(`key11: ${key}`)
+
+  myProcess1.send(input1)
+  myProcess2.send(input2)
+
+  // listen for messages from forked process
+  myProcess1.on('message', (message) => {
+    debug('process1 result')
+    for (const key in message.result)
+      debug(`result key: ${key}`)
+    if (!result) 
+      result = message.result
+    else {
+      result.sources = { ...result.sources, ...message.result.sources }
+      result.errors = result.errors.concat(message.result.errors)
+      result.contracts = { ...result.contracts, ...message.result.contracts }
+      onCompiled(result)
+    }
+  })
+
+  myProcess2.on('message', (message) => {
+    debug('process2 result')
+    if (!result) 
+      result = message.result
+    else {
+        result.sources = { ...result.sources, ...message.result.sources }
+        result.errors = result.errors.concat(message.result.errors)
+        result.contracts = { ...result.contracts, ...message.result.contracts }
+        onCompiled(result)
+      }
+  })  
+  
 };
 
 function replaceLinkReferences(bytecode, linkReferences, libraryName) {
