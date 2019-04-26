@@ -1,20 +1,31 @@
-require('v8-compile-cache')
 const CompilerSupplier = require("./compilerSupplier")
 const debug = require('debug')('compile-process')
+
 //const cluster = require('cluster')
 
-async function compile(input) {
+let solc
+
+async function getSolc() {
+  if (!solc) {
     const supplier = new CompilerSupplier()
+    solc = await supplier.load()
+  }
+  return solc
+}
+
+async function compile(input) {
+    
 
     debug(`getSupplier: `)
 
-    return supplier
-    .load()
-    .then(solc => {
-      debug('compiling')
-      const result = solc.compile(JSON.stringify(input))
-      return JSON.parse(result)
-    })
+    const solc = await getSolc()
+
+    debug('compiling')
+    //console.log('input: ', input)
+    const result = solc.compile(JSON.stringify(input))
+    //console.log('output: ', JSON.parse(result))
+    return JSON.parse(result)
+
  }
  
  // receive message from master process
@@ -35,3 +46,5 @@ async function compile(input) {
      debug('Error: %o', err)
    }
  })
+
+ getSolc()

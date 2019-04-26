@@ -11,6 +11,8 @@ const semver = require("semver");
 const detailedError = require('./detailederror');
 const debug = require("debug")("compile"); // eslint-disable-line no-unused-vars
 const { fork } = require('child_process')
+const myProcess1 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
 
 
 // Most basic of the compile commands. Takes a hash of sources, where
@@ -133,7 +135,7 @@ const compile = function(sources, options, callback) {
   
   
   const onCompiled = (standardOutput) => {
-    debug(`compiled ${JSON.stringify(standardOutput)}`)
+    //debug(`compiled ${JSON.stringify(standardOutput)}`)
     //const result = solc.compile(JSON.stringify(solcStandardInput));
       //debug('compiled')
 
@@ -286,13 +288,11 @@ const compile = function(sources, options, callback) {
   '/home/mathew/workspace/eblocks/eblocks/contracts/Test3.sol',
   '/home/mathew/workspace/eblocks/eblocks/contracts/Test4.sol',]
   
-  const myProcess1 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
-  const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
-  
+ 
   const input1 = { 
     input: {
       language: solcStandardInput.language,
-      options: solcStandardInput.options,
+      settings: solcStandardInput.settings,
       sources: p1.reduce((acc, v) => ({ ...acc, [v]: solcStandardInput.sources[v] }), {}),
     },
     p: 1
@@ -300,7 +300,7 @@ const compile = function(sources, options, callback) {
   const input2 = { 
     input: {
       language: solcStandardInput.language,
-      options: solcStandardInput.options,
+      settings: solcStandardInput.settings,
       sources: p2.reduce((acc, v) => ({ ...acc, [v]: solcStandardInput.sources[v] }), {}),
     },
     p: 2
@@ -312,11 +312,21 @@ const compile = function(sources, options, callback) {
   myProcess1.send(input1)
   myProcess2.send(input2)
 
-  // listen for messages from forked process
+  /*
+  myProcess1.send({ input: solcStandardInput })
+
   myProcess1.on('message', (message) => {
     debug('process1 result')
-    for (const key in message.result)
-      debug(`result key: ${key}`)
+
+    onCompiled(message.result)
+    
+  })  */
+
+  // listen for messages from forked process
+  
+  myProcess1.on('message', (message) => {
+    debug('process1 result')
+    myProcess1.kill()
     if (!result) 
       result = message.result
     else {
@@ -329,6 +339,7 @@ const compile = function(sources, options, callback) {
 
   myProcess2.on('message', (message) => {
     debug('process2 result')
+    myProcess2.kill()
     if (!result) 
       result = message.result
     else {
@@ -337,7 +348,7 @@ const compile = function(sources, options, callback) {
         result.contracts = { ...result.contracts, ...message.result.contracts }
         onCompiled(result)
       }
-  })  
+  }) 
   
 };
 
