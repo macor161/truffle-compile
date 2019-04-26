@@ -1,15 +1,27 @@
-const CompilerSupplier = require("./compilerSupplier")
 const debug = require('debug')('compile-process')
+debug('loading process')
+const CompilerSupplier = require("./compilerSupplier")
 
 //const cluster = require('cluster')
+
+const DEFAULT_OPTIONS = { 
+  settings: { 
+    optimizer: { enabled: true, runs: 200 },
+    evmVersion: undefined 
+  } 
+}
+
 
 let solc
 
 async function getSolc() {
   if (!solc) {
+    debug('fetching solc')
     const supplier = new CompilerSupplier()
     solc = await supplier.load()
   }
+  else
+    debug('solc cached')
   return solc
 }
 

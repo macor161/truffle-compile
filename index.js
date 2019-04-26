@@ -1,4 +1,8 @@
 require('v8-compile-cache')
+const debug = require("debug")("compile"); // eslint-disable-line no-unused-vars
+const { fork } = require('child_process')
+const myProcess1 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
 const OS = require("os");
 const path = require("path");
 const Profiler = require("./profiler");
@@ -9,10 +13,7 @@ const find_contracts = require("truffle-contract-sources");
 const Config = require("truffle-config");
 const semver = require("semver");
 const detailedError = require('./detailederror');
-const debug = require("debug")("compile"); // eslint-disable-line no-unused-vars
-const { fork } = require('child_process')
-const myProcess1 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
-const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+
 
 
 // Most basic of the compile commands. Takes a hash of sources, where
