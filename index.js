@@ -277,7 +277,6 @@ const compile = function(sources, options, callback) {
       
   }
 
-  debug('creating process')
   let result = null
 
   const p1 = ['openzeppelin-solidity/contracts/math/SafeMath.sol',
@@ -307,8 +306,12 @@ const compile = function(sources, options, callback) {
     p: 2
   }
 
-  //for (const key in solcStandardInput)
-  //  debug(`key11: ${key}`)
+  const fs = require('fs')
+
+  fs.writeFileSync("./input.json", JSON.stringify({ input: solcStandardInput }))
+  //fs.writeFileSync("./input1.json", JSON.stringify(input1))
+  //fs.writeFileSync("./input2.json", JSON.stringify(input2))
+
 
   myProcess1.send(input1)
   myProcess2.send(input2)
@@ -446,7 +449,6 @@ compile.all = function(options, callback) {
   debug('compile.all started')
   find_contracts(options.contracts_directory, function(err, files) {
     if (err) return callback(err);
-    debug(`files: ${files}`)
     options.paths = files;
     compile.with_dependencies(options, callback);
   });
@@ -496,9 +498,6 @@ compile.with_dependencies = function(options, callback) {
     }),
     (err, allSources, required) => {
       if (err) return callback(err);
-      for (key in allSources) {
-        debug(`dependencies fetched: ${key}`)
-      }
 
       var hasTargets = required.length;
 

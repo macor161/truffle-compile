@@ -1,3 +1,4 @@
+//require('v8-compile-cache')
 const debug = require('debug')('compile-process')
 debug('loading process')
 const CompilerSupplier = require("./compilerSupplier")
@@ -16,20 +17,15 @@ let solc
 
 async function getSolc() {
   if (!solc) {
-    debug('fetching solc')
-    const supplier = new CompilerSupplier()
+    debug('Loading solc')
+    const supplier = new CompilerSupplier(DEFAULT_OPTIONS)
     solc = await supplier.load()
+    debug('solc loaded')
   }
-  else
-    debug('solc cached')
   return solc
 }
 
-async function compile(input) {
-    
-
-    debug(`getSupplier: `)
-
+async function compile(input) {    
     const solc = await getSolc()
 
     debug('compiling')
@@ -45,12 +41,7 @@ async function compile(input) {
    try {
     debug(`starting compilation ${message.p}`)
 
-    //for (const key in message.input.sources)
-    //  debug(`k${message.p}: ${key}`)
-
     const result = await compile(message.input);
-
-
     
     // send response to master process
     process.send({ result });
