@@ -1,8 +1,5 @@
 require('v8-compile-cache')
-const debug = require("debug")("compile"); // eslint-disable-line no-unused-vars
-const { fork } = require('child_process')
-const myProcess1 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
-const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+const debug = require("debug")("compile")
 const OS = require("os");
 const path = require("path");
 const Profiler = require("./profiler");
@@ -13,6 +10,14 @@ const find_contracts = require("truffle-contract-sources");
 const Config = require("truffle-config");
 const semver = require("semver");
 const detailedError = require('./detailederror');
+//const compiler = require('./multiprocess-compiler')
+const isSingleProcess = process.env.COMPILER === 'SINGLE_PROCESS'
+
+const compiler = isSingleProcess
+  ? require('./single-process-compiler')
+  : require('./multiprocess-compiler')
+
+debug(`Compiler in ${isSingleProcess ? 'single process' : 'multi process'} mode`)
 
 
 
@@ -277,84 +282,10 @@ const compile = function(sources, options, callback) {
       
   }
 
-  let result = null
+  compiler(solcStandardInput)
+    .then(onCompiled)
 
-  const p1 = ['openzeppelin-solidity/contracts/math/SafeMath.sol',
-  'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol',
-  '/home/mathew/workspace/eblocks/eblocks/contracts/ERC20.sol',
-  '/home/mathew/workspace/eblocks/eblocks/contracts/Test.sol']
-  const p2 = ['/home/mathew/workspace/eblocks/eblocks/contracts/Migrations.sol',
-  '/home/mathew/workspace/eblocks/eblocks/contracts/Test2.sol',
-  '/home/mathew/workspace/eblocks/eblocks/contracts/Test3.sol',
-  '/home/mathew/workspace/eblocks/eblocks/contracts/Test4.sol',]
-  
- 
-  const input1 = { 
-    input: {
-      language: solcStandardInput.language,
-      settings: solcStandardInput.settings,
-      sources: p1.reduce((acc, v) => ({ ...acc, [v]: solcStandardInput.sources[v] }), {}),
-    },
-    p: 1
-  }
-  const input2 = { 
-    input: {
-      language: solcStandardInput.language,
-      settings: solcStandardInput.settings,
-      sources: p2.reduce((acc, v) => ({ ...acc, [v]: solcStandardInput.sources[v] }), {}),
-    },
-    p: 2
-  }
-
-  const fs = require('fs')
-
-  fs.writeFileSync("./input.json", JSON.stringify({ input: solcStandardInput }))
-  //fs.writeFileSync("./input1.json", JSON.stringify(input1))
-  //fs.writeFileSync("./input2.json", JSON.stringify(input2))
-
-
-  myProcess1.send(input1)
-  myProcess2.send(input2)
-
-  /*
-  myProcess1.send({ input: solcStandardInput })
-
-  myProcess1.on('message', (message) => {
-    debug('process1 result')
-
-    onCompiled(message.result)
-    
-  })  */
-
-  // listen for messages from forked process
-  
-  myProcess1.on('message', (message) => {
-    debug('process1 result')
-    myProcess1.kill()
-    if (!result) 
-      result = message.result
-    else {
-      result.sources = { ...result.sources, ...message.result.sources }
-      result.errors = result.errors.concat(message.result.errors)
-      result.contracts = { ...result.contracts, ...message.result.contracts }
-      onCompiled(result)
-    }
-  })
-
-  myProcess2.on('message', (message) => {
-    debug('process2 result')
-    myProcess2.kill()
-    if (!result) 
-      result = message.result
-    else {
-        result.sources = { ...result.sources, ...message.result.sources }
-        result.errors = result.errors.concat(message.result.errors)
-        result.contracts = { ...result.contracts, ...message.result.contracts }
-        onCompiled(result)
-      }
-  }) 
-  
-};
+}
 
 function replaceLinkReferences(bytecode, linkReferences, libraryName) {
   var linkId = "__" + libraryName;
