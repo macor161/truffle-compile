@@ -1,4 +1,5 @@
 require('v8-compile-cache')
+require('./setup-debug')
 const debug = require("debug")("compile")
 const OS = require("os");
 const path = require("path");
@@ -141,6 +142,7 @@ const compile = function(sources, options, callback) {
   
   
   const onCompiled = (standardOutput) => {
+      debug('Compilation done')
     //debug(`compiled ${JSON.stringify(standardOutput)}`)
     //const result = solc.compile(JSON.stringify(solcStandardInput));
       //debug('compiled')
@@ -282,6 +284,7 @@ const compile = function(sources, options, callback) {
       
   }
 
+  debug('Starting compilation')
   compiler(solcStandardInput)
     .then(onCompiled)
 
