@@ -31,8 +31,10 @@ async function compile(input) {
     debug('compiling')
     //console.log('input: ', input)
     const result = solc.compile(JSON.stringify(input))
+    const parsedResult = JSON.parse(result)
+    debug('done')
     //console.log('output: ', JSON.parse(result))
-    return JSON.parse(result)
+    return parsedResult
 
  }
  

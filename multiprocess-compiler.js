@@ -1,12 +1,12 @@
-const debug = require("debug")("compile")
+const debug = require("debug")("compiler")
 const { fork } = require('child_process')
 const myProcess1 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
-const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+//const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
 
 module.exports = function(solcStandardInput) {
     return new Promise((res, rej) => {
         let result = null
-
+        debug('start')
         const p1 = ['openzeppelin-solidity/contracts/math/SafeMath.sol',
         'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol',
         '/home/mathew/workspace/eblocks/eblocks/contracts/ERC20.sol',
@@ -36,21 +36,22 @@ module.exports = function(solcStandardInput) {
     
     
     
-        myProcess1.send(input1)
-        myProcess2.send(input2)
+        //myProcess1.send(input1)
+        //myProcess2.send(input2)
     
-        /*
+        
         myProcess1.send({ input: solcStandardInput })
     
         myProcess1.on('message', (message) => {
-        debug('process1 result')
-    
-        onCompiled(message.result)
+            
+            myProcess1.kill()
+            debug('done')
+            res(message.result)
         
-        })  */
+        })  
     
         // listen for messages from forked process
-        
+        /*
         myProcess1.on('message', (message) => {
             debug('process1 result')
             myProcess1.kill()
@@ -75,7 +76,7 @@ module.exports = function(solcStandardInput) {
                 result.contracts = { ...result.contracts, ...message.result.contracts }
                 res(result)
             }
-        })  
+        })  */
     
     })
 
