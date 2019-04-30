@@ -1,5 +1,5 @@
 const debug = require('debug')('compile-process')
-const CompilerSupplier = require("./compilerSupplier")
+const CompilerSupplier = require("../compilerSupplier")
 
 const DEFAULT_OPTIONS = {
   settings: {

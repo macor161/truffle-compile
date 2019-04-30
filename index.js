@@ -1,6 +1,12 @@
 require('v8-compile-cache')
 require('./setup-debug')
 const debug = require("debug")("compile")
+const isSingleProcess = process.env.COMPILER === 'SINGLE_PROCESS'
+
+const compiler = isSingleProcess
+  ? require('./single-process-compiler')
+  : require('./compiler/multiprocess-compiler')
+  
 const OS = require("os");
 const path = require("path");
 const Profiler = require("./profiler");
@@ -11,12 +17,7 @@ const find_contracts = require("truffle-contract-sources");
 const Config = require("truffle-config");
 const semver = require("semver");
 const detailedError = require('./detailederror');
-//const compiler = require('./multiprocess-compiler')
-const isSingleProcess = process.env.COMPILER === 'SINGLE_PROCESS'
 
-const compiler = isSingleProcess
-  ? require('./single-process-compiler')
-  : require('./multiprocess-compiler')
 
 debug(`Compiler in ${isSingleProcess ? 'single process' : 'multi process'} mode`)
 

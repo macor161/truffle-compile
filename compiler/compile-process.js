@@ -1,6 +1,6 @@
 require('v8-compile-cache')
 // TODO: Fix v8-compile-cache used with child_process.fork
-require('./setup-debug')
+require('../setup-debug')
 const debug = require('debug')('compile-process')
 debug('loading process')
 const compile = require('./compile')

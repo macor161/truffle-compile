@@ -1,12 +1,19 @@
-const debug = require("debug")("compiler")
+const debug = require("debug")("multiprocess-compiler")
 const { fork } = require('child_process')
-const myProcess1 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+const path = require('path')
+const myProcess1 = fork(path.join(__dirname, 'compile-process.js'))
 //const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
+const workers = []
 
 module.exports = function(solcStandardInput) {
+
+    //if (cluster.isMaster)
     return new Promise((res, rej) => {
-        let result = null
         debug('start')
+        const numCores = require('os').cpus().length
+        debug(`nb of core: ${numCores}`)
+        let result = null
+                
         const p1 = ['openzeppelin-solidity/contracts/math/SafeMath.sol',
         'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol',
         '/home/mathew/workspace/eblocks/eblocks/contracts/ERC20.sol',
@@ -40,6 +47,7 @@ module.exports = function(solcStandardInput) {
         //myProcess2.send(input2)
     
         
+        debug(`sending input ${new Date().toISOString()}`)
         myProcess1.send({ input: solcStandardInput })
     
         myProcess1.on('message', (message) => {
