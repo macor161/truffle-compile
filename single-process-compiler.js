@@ -16,9 +16,7 @@ module.exports = async function(input) {
     solc = await supplier.load()
     debug(`start`)
 
-    //console.log('input: ', input)
     const result = solc.compile(JSON.stringify(input))
-    //console.log('output: ', JSON.parse(result))
     const parsedResult = JSON.parse(result)
     debug(`done`)
     return parsedResult     

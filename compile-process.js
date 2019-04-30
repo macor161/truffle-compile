@@ -2,16 +2,10 @@ require('v8-compile-cache')
 // TODO: Fix v8-compile-cache used with child_process.fork
 require('./setup-debug')
 const debug = require('debug')('compile-process')
-const CompilerSupplier = require("./compilerSupplier")
+debug('loading process')
+const compile = require('./compile')
 
 preLoadDependencies()
-
-const DEFAULT_OPTIONS = {
-  settings: {
-    optimizer: { enabled: true, runs: 200 },
-    evmVersion: undefined
-  }
-}
 
 
 function preLoadDependencies() {
@@ -26,31 +20,16 @@ function preLoadDependencies() {
 }
 
 
-async function compile(input) {
-  debug('Loading solc')
-  const supplier = new CompilerSupplier(DEFAULT_OPTIONS)
-  const solc = await supplier.load()
-  debug('solc loaded')
-
-  debug('compiling')
-  //console.log('input: ', input)
-  const result = solc.compile(JSON.stringify(input))
-  const parsedResult = JSON.parse(result)
-  debug('done')
-  //console.log('output: ', JSON.parse(result))
-  return parsedResult
-
-}
-
 // receive message from master process
 process.on('message', async (message) => {
   try {
-    debug(`starting compilation ${message.p}`)
+    debug(`starting compilation ${new Date().toISOString()}`)
 
     const result = await compile(message.input)
 
     // send response to master process
     process.send({ result })
+    debug('compile result sent')
   } catch (err) {
     debug('Error: %o', err)
   }
