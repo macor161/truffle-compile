@@ -9,7 +9,6 @@ const DEFAULT_OPTIONS = {
 }
 
 
-
 module.exports = async function compile(input, compilerOptions = DEFAULT_OPTIONS) {
     debug('Loading solc')
     const supplier = new CompilerSupplier(compilerOptions)

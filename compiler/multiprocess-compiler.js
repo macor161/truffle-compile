@@ -1,18 +1,13 @@
 const debug = require("debug")("multiprocess-compiler")
-const { fork } = require('child_process')
-const path = require('path')
-const myProcess1 = fork(path.join(__dirname, 'compile-process.js'))
-//const myProcess2 = fork('/home/mathew/workspace/eblocks/truffle-compile/compile-process.js')
-const workers = []
+const { cpus } = require('os')
+
+const Worker = require('./worker')
+const workers = initWorkers()
 
 module.exports = function(solcStandardInput) {
 
-    //if (cluster.isMaster)
     return new Promise((res, rej) => {
         debug('start')
-        const numCores = require('os').cpus().length
-        debug(`nb of core: ${numCores}`)
-        let result = null
                 
         const p1 = ['openzeppelin-solidity/contracts/math/SafeMath.sol',
         'openzeppelin-solidity/contracts/token/ERC20/IERC20.sol',
@@ -41,51 +36,40 @@ module.exports = function(solcStandardInput) {
             p: 2
         }
     
-    
-    
-        //myProcess1.send(input1)
-        //myProcess2.send(input2)
-    
         
         debug(`sending input ${new Date().toISOString()}`)
-        myProcess1.send({ input: solcStandardInput })
-    
-        myProcess1.on('message', (message) => {
-            
-            myProcess1.kill()
-            debug('done')
-            res(message.result)
-        
-        })  
-    
-        // listen for messages from forked process
-        /*
-        myProcess1.on('message', (message) => {
-            debug('process1 result')
-            myProcess1.kill()
-            if (!result) 
-                result = message.result
-            else {
-                result.sources = { ...result.sources, ...message.result.sources }
-                result.errors = result.errors.concat(message.result.errors)
-                result.contracts = { ...result.contracts, ...message.result.contracts }
-                res(result)
-            }
-        })
-    
-        myProcess2.on('message', (message) => {
-            debug('process2 result')
-            myProcess2.kill()
-            if (!result) 
-                result = message.result
-            else {
-                result.sources = { ...result.sources, ...message.result.sources }
-                result.errors = result.errors.concat(message.result.errors)
-                result.contracts = { ...result.contracts, ...message.result.contracts }
-                res(result)
-            }
-        })  */
-    
+
+        workers[0].addInput(input1.input)
+        workers[1].addInput(input2.input)
+
+
+
+        Promise.all(workers
+                .filter(worker => worker.hasInput())
+                .map(worker => worker.compile())
+            )
+            .then(results => {
+                const result = results[0]
+                result.sources = { ...result.sources, ...results[1].sources }
+                result.errors = result.errors.concat(results[1].errors)
+                result.contracts = { ...result.contracts, ...results[1].contracts }
+                res(result) 
+                workers.forEach(worker => worker.close())
+            })
+   
     })
 
+}
+
+/**
+ * Returns as many workers as cpu available.
+ * First worker is not creating a child process.
+ */
+function initWorkers() {
+    return cpus()
+        .map((cpu, index) => {
+            return index === 0 
+                ? new Worker({ childProcess: false })
+                : new Worker({ childProcess: true })
+        })
 }

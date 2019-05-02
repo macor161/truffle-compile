@@ -13,7 +13,7 @@ module.exports = class Worker {
     constructor({ childProcess = true, compilerOptions } = {}) {
         this.isChildProcess = childProcess
         this.compilerOptions = compilerOptions
-        this.input = {}
+        this.input = null
 
         if (childProcess) {
             const { fork } = require('child_process')
@@ -21,9 +21,9 @@ module.exports = class Worker {
             this._process = fork(path.join(__dirname, 'compile-process.js'))
             this._compilePromise = new Promise((res, rej) => { 
                 this._process.on('message', message => {            
-                    this._process.kill()
                     debug('done')
                     res(message.result)            
+                    this._process.kill()
                 })
             })
         }
@@ -31,6 +31,13 @@ module.exports = class Worker {
 
     addInput(input) {
         this.input = { ...this.input, ...input }
+    }
+
+    hasInput() { return !!this.input }
+
+    close() {
+        if (this._process && !this._process.killed)
+            this._process.kill()            
     }
 
     async compile(compilerOptions = DEFAULT_OPTIONS) {
