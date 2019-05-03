@@ -13,7 +13,7 @@ class DependencyTree {
         this._leafs = []
 
         // Files with missing dependencies
-        this._missingDependenciesFiles = []
+        this._filesWithMissingDependencies = []
     }
 
     /**
@@ -27,10 +27,11 @@ class DependencyTree {
         if (this._files[file.path])
             console.error(`File ${filePath} already exists in dependency tree`)
         
-        this._files[file.path] = file
-        this._fillInDependencies(file)
-        this._updateMissingDependenciesFiles(file)
-        this._updateLeafs(file.dependencies)
+        const fileNode = new DependencyTreeNode(file)
+        this._files[fileNode.path] = fileNode
+        this._fillInDependencies(fileNode)
+        this._updateMissingDependenciesFiles(fileNode)
+        this._updateLeafs(fileNode.dependencies)
     }
 
     /**
@@ -49,14 +50,15 @@ class DependencyTree {
     _updateMissingDependenciesFiles(newFile) {
         let fileIsADependency = false
 
-        for (const file of this._missingDependenciesFiles) {
+        for (const file of this._filesWithMissingDependencies) {
             if (file.imports.includes(newFile.path)) {
                 file.dependencies.push(newFile)
                 fileIsADependency = true
             }
         }
 
-        this._missingDependenciesFiles = [...this._missingDependenciesFiles, newFile]
+        this._filesWithMissingDependencies = this._filesWithMissingDependencies
+            .concat([newFile])
             .filter(file => file.dependencies.length !== file.imports.length)
 
         if (!fileIsADependency)
@@ -70,5 +72,27 @@ class DependencyTree {
 }
 
 
+class DependencyTreeNode {
+    constructor(file) {
+        this.dependencies = file.dependencies || []
+        this.path = file.path
+        this.imports = file.imports
+    }
 
-module.exports = { DependencyTree }
+    getDirectDependencies() {
+        return this.dependencies
+    }
+
+    getAllDependencies() {
+        return new Set(this.dependencies
+            .concat(this.dependencies
+                .map(node => node.getAllDependencies())
+                .reduce((acc, dep) => acc.concat(dep), [])
+            )
+        )
+    }
+}
+
+
+
+module.exports = { DependencyTree, DependencyTreeNode }
