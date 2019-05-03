@@ -25,7 +25,7 @@ class DependencyTree {
      */
     addFile(file) {
         if (this._files[file.path])
-            console.error(`File ${filePath} already exists in dependency tree`)
+            console.error(`File ${file.path} already exists in dependency tree`)
         
         const fileNode = new DependencyTreeNode(file)
         this._files[fileNode.path] = fileNode
@@ -84,10 +84,12 @@ class DependencyTreeNode {
     }
 
     getAllDependencies() {
-        return new Set(this.dependencies
-            .concat(this.dependencies
-                .map(node => node.getAllDependencies())
-                .reduce((acc, dep) => acc.concat(dep), [])
+        return Array.from(
+            new Set(this.dependencies
+                .concat(this.dependencies
+                    .map(node => node.getAllDependencies())
+                    .reduce((acc, dep) => acc.concat(dep), [])
+                )
             )
         )
     }
