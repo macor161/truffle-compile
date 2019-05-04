@@ -1,4 +1,4 @@
-const compile = require('./compile')
+const loadCompile = require('./compile')
 
 const DEFAULT_OPTIONS = {
     settings: {
@@ -37,6 +37,7 @@ module.exports = class Worker {
             sources: {}
         }
         this._debug = require('debug')(`worker-${id}`)
+        this._compile = loadCompile(this._debug)
 
         if (childProcess) {
             const { fork } = require('child_process')
@@ -71,7 +72,7 @@ module.exports = class Worker {
 
         const result = this.isChildProcess
             ? await this._sendInputToProcess()
-            : await compile(this.input, compilerOptions)
+            : await this._compile(this.input, compilerOptions)
 
         this._debug('compile done')
         return result

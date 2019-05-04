@@ -7,7 +7,7 @@ const debug = require('debug')(`compile-process-${processId}`)
 debug('loading process')
 preLoadDependencies()
 
-const compile = require('./compile')
+const compile = require('./compile')(debug)
 
 
 function preLoadDependencies() {
