@@ -1,39 +1,63 @@
-const debug = require('debug')('worker')
 const compile = require('./compile')
 
 const DEFAULT_OPTIONS = {
     settings: {
       optimizer: { enabled: true, runs: 200 },
-      evmVersion: undefined
+      evmVersion: undefined,
+      outputSelection: {
+        "*": {
+            "": [
+                "legacyAST",
+                "ast"
+            ],
+            "*": [
+                "abi",
+                "metadata",
+                "evm.bytecode.object",
+                "evm.bytecode.sourceMap",
+                "evm.deployedBytecode.object",
+                "evm.deployedBytecode.sourceMap",
+                "userdoc",
+                "devdoc"
+            ]
+        }
     }
+  }
 }
 
 module.exports = class Worker {
 
-    constructor({ childProcess = true, compilerOptions } = {}) {
+    constructor({ childProcess = true, compilerOptions, id } = {}) {
         this.isChildProcess = childProcess
         this.compilerOptions = compilerOptions
-        this.input = null
+        this.id = id
+        this.input = {
+            language: 'Solidity',
+            settings: DEFAULT_OPTIONS.settings,
+            sources: {}
+        }
+        this._debug = require('debug')(`worker-${id}`)
 
         if (childProcess) {
             const { fork } = require('child_process')
             const path = require('path')
-            this._process = fork(path.join(__dirname, 'compile-process.js'))
-            this._compilePromise = new Promise((res, rej) => { 
-                this._process.on('message', message => {            
-                    debug('done')
-                    res(message.result)            
-                    this._process.kill()
-                })
-            })
+            this._process = fork(path.join(__dirname, 'compile-process.js'), [id])
         }
     }
 
-    addInput(input) {
-        this.input = { ...this.input, ...input }
+    addSource(sourceNode) {
+        //debug('adding sourceNode %o', sourceNode.path)
+        this.input.sources = sourceNode.getAllDependencies()
+            .concat([{ path: sourceNode.path, content: sourceNode.content }])
+            .reduce((acc, dep) => {
+                acc[dep.path] = { content: dep.content }
+                return acc
+            }, this.input.sources)
+
+        //debug('sources: %o', this.input.sources)
     }
 
-    hasInput() { return !!this.input }
+    hasSources() { return this.input.sources != {} }
 
     close() {
         if (this._process && !this._process.killed)
@@ -41,13 +65,26 @@ module.exports = class Worker {
     }
 
     async compile(compilerOptions = DEFAULT_OPTIONS) {
-        return this.isChildProcess
-            ? this._sendInputToProcess()
-            : compile(this.input, compilerOptions)
+        this._debug('compiling %o', Object.keys(this.input.sources))
+        this._debug(`time ${new Date().toISOString()}`)
+        //require('fs').writeFileSync(`./newinput-${this.id}.json`, JSON.stringify(this.input))
+
+        const result = this.isChildProcess
+            ? await this._sendInputToProcess()
+            : await compile(this.input, compilerOptions)
+
+        this._debug('compile done')
+        return result
     }
 
     _sendInputToProcess() {
-        this._process.send({ input: this.input })
-        return this._compilePromise
+        return new Promise((res, rej) => {             
+            this._process.on('message', message => {    
+                this._debug(`result received ${new Date().toISOString()}`)
+                res(message.result)            
+                this._process.kill()
+            })
+            this._process.send({ input: this.input })
+        })
     }
 }
