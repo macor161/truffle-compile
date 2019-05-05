@@ -77,6 +77,7 @@ class DependencyTreeNode {
         this.dependencies = file.dependencies || []
         this.path = file.path
         this.imports = file.imports
+        this.content = file.content
     }
 
     getDirectDependencies() {
