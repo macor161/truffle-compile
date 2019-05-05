@@ -30,7 +30,7 @@ class DependencyTree {
         const fileNode = new DependencyTreeNode(file)
         this._files[fileNode.path] = fileNode
         this._fillInDependencies(fileNode)
-        this._updateMissingDependenciesFiles(fileNode)
+        this._updateFilesWithMissingDependencies(fileNode)
         this._updateLeafs(fileNode.dependencies)
     }
 
@@ -47,21 +47,19 @@ class DependencyTree {
             .map(path => this._files[path])        
     }
 
-    _updateMissingDependenciesFiles(newFile) {
-        let fileIsADependency = false
-
+    _updateFilesWithMissingDependencies(newFile) {
         for (const file of this._filesWithMissingDependencies) {
             if (file.imports.includes(newFile.path)) {
                 file.dependencies.push(newFile)
-                fileIsADependency = true
+                newFile.children.push(file)
             }
         }
 
         this._filesWithMissingDependencies = this._filesWithMissingDependencies
             .concat([newFile])
-            .filter(file => file.dependencies.length !== file.imports.length)
+            .filter(file => file.isMissingDependencies())
 
-        if (!fileIsADependency)
+        if (newFile.children.length > 0)
             this._leafs.push(newFile)
     }
 
@@ -71,29 +69,55 @@ class DependencyTree {
     }
 }
 
-
+/**
+ * @property {string} path File path
+ * @property {string} content Source code
+ * @property {string[]} imports Dependencies file paths
+ * @property {DependencyTreeNode[]} dependencies Dependencies
+ * @property {DependencyTreeNode[]} children All nodes that depend on this node 
+ */
 class DependencyTreeNode {
     constructor(file) {
         this.dependencies = file.dependencies || []
         this.path = file.path
         this.imports = file.imports
         this.content = file.content
+        this.children = []
+    }
+
+    isMissingDependencies() {
+        return this.imports.length > this.dependencies.length
+    }
+
+    getAllDependencies() {
+        const dependencies = this.dependencies
+            .map(node => node.getAllDependencies())
+            .reduce((acc, dep) => acc.concat(dep), []) // Flatten nested dependencies
+            .concat(this.dependencies)  // Add current node dependencies
+        
+        return unique(dependencies)
     }
 
     getDirectDependencies() {
         return this.dependencies
     }
 
-    getAllDependencies() {
-        return Array.from(
-            new Set(this.dependencies
-                .concat(this.dependencies
-                    .map(node => node.getAllDependencies())
-                    .reduce((acc, dep) => acc.concat(dep), [])
-                )
-            )
-        )
+    getLeafs() {
+        if (this.children.length === 0)
+            return [this]
+
+        const leafs = this.children
+            .map(node => node.getLeafs())
+            .reduce((acc, dep) => acc.concat(dep), []) // Flatten children leafs
+
+        return unique(leafs)
     }
+
+}
+
+
+function unique(items) {
+    return Array.from(new Set(items))
 }
 
 
