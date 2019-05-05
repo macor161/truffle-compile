@@ -226,13 +226,17 @@ module.exports = {
             allPaths,
             solc
           );
-          debug(`Sources resolved: `)
+          //debug(`Sources resolved: %o`, resolved)
           // Generate hash of all sources including external packages - passed to solc inputs.
-          const resolvedPaths = Object.keys(resolved);
-          resolvedPaths.forEach(file => {
+          Object.keys(resolved).forEach(file => {
             // Don't throw vyper files into solc!
-            if (path.extname(file) !== ".vy")
-              allSources[file] = resolved[file].body;
+            if (path.extname(file) !== ".vy") {
+              allSources[file] = { 
+                path: file,
+                content: resolved[file].body, 
+                imports: resolved[file].imports
+              }
+            }
           });
 
           // Exit w/out minimizing if we've been asked to compile everything, or nothing.
