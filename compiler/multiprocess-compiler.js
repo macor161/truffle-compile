@@ -1,6 +1,8 @@
 const debug = require("debug")("multiprocess-compiler")
-const { cpus } = require('os')
-
+const os = require('os')
+const { DependencyTree } = require('../dependency-tree')
+const cpus = os.cpus()
+//const cpus = [1, 2]
 const Worker = require('./worker')
 const workers = initWorkers()
 
@@ -35,24 +37,52 @@ module.exports = function(solcStandardInput) {
             },
             p: 2
         }
-    
-        
-        debug(`sending input ${new Date().toISOString()}`)
 
-        workers[0].addInput(input1.input)
-        workers[1].addInput(input2.input)
+        const dependencyTree = new DependencyTree()
+
+        
+        for (const key in solcStandardInput.sources) {
+            //debug(`adding ${key} to dep tree`)
+            dependencyTree.addFile(solcStandardInput.sources[key])
+            //debug(`leafs: %o`, dependencyTree.getLeafs().map(f => f.path))    
+            //debug(`miss dep: %o`, dependencyTree._filesWithMissingDependencies.map(f => f.path))    
+        }
+        
+        /*
+        for (const file of dependencyTree.getLeafs()) {
+            //const file = dependencyTree._files[fileName]
+            debug(`${file.path} deps: %o`, file.getAllDependencies().map(a => a.path))
+        }*/
+        /*
+        for (const filename in dependencyTree._files) {
+            const file = dependencyTree._files[filename]
+            debug(`${file.path} deps: %o`, file.dependencies.map(a => a.path))
+        }*/
+
+        dependencyTree.getLeafs().forEach((node, index) => {
+            workers[index % cpus.length].addSource(node)
+        })
+    
+        debug(`sending input ${new Date().toISOString()}`)
 
 
 
         Promise.all(workers
-                .filter(worker => worker.hasInput())
+                .filter(worker => worker.hasSources())
                 .map(worker => worker.compile())
             )
             .then(results => {
-                const result = results[0]
-                result.sources = { ...result.sources, ...results[1].sources }
-                result.errors = result.errors.concat(results[1].errors)
-                result.contracts = { ...result.contracts, ...results[1].contracts }
+                debug('merging results')
+                let result = results[0]
+                for(let i = 1; i < results.length; i++) {                    
+                    result.sources = { ...result.sources, ...(results[i].sources) }
+
+                    if (results[i].errors)
+                        result.errors = (result.errors || []).concat(results[i].errors)
+                    
+                    result.contracts = { ...result.contracts, ...(results[i].contracts) }
+                }
+                debug('results merged')
                 res(result) 
                 workers.forEach(worker => worker.close())
             })
@@ -66,10 +96,10 @@ module.exports = function(solcStandardInput) {
  * First worker is not creating a child process.
  */
 function initWorkers() {
-    return cpus()
+    return cpus
         .map((cpu, index) => {
             return index === 0 
-                ? new Worker({ childProcess: false })
-                : new Worker({ childProcess: true })
+                ? new Worker({ childProcess: false, id: index })
+                : new Worker({ childProcess: true, id: index })
         })
 }
