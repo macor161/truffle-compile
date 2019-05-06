@@ -69,6 +69,7 @@ class DependencyTree {
     }
 }
 
+
 /**
  * @property {string} path File path
  * @property {string} content Source code
@@ -102,15 +103,52 @@ class DependencyTreeNode {
         return this.dependencies
     }
 
-    getLeafs() {
-        if (this.children.length === 0)
+    getLeafs({ onlyUniques = true } = {}) {
+        if (this.isLeaf())
             return [this]
 
         const leafs = this.children
             .map(node => node.getLeafs())
             .reduce((acc, dep) => acc.concat(dep), []) // Flatten children leafs
 
-        return unique(leafs)
+        return onlyUniques
+            ? unique(leafs)
+            : leafs
+    }
+
+    isLeaf() {
+        return this.children.length === 0
+    }
+
+}
+
+
+class Branch {
+
+    /**
+     * 
+     * @param {DependencyTreeNode} node 
+     */
+    constructor(node) {
+        this._node = node
+        this._nodesInCommonCache = new Map() // Cache for nodes in common for each branch
+    }
+
+    getNodes() {
+        return this._node.getAllDependencies()
+    }
+
+    nodesInCommon(branch) {
+        if (!this._nodesInCommonCache.has(branch)) {
+            const branchNodes = branch.getNodes()
+
+            const nodesInCommon = this._node.getAllDependencies()
+                .filter(node => branchNodes.includes(node))
+
+            this._nodesInCommonCache.set(branch, nodesInCommon)
+        }
+
+        return this._nodesInCommonCache.get(branch)
     }
 
 }
