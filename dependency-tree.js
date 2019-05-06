@@ -34,6 +34,11 @@ class DependencyTree {
         this._updateLeafs()
     }
 
+    getBranches() {
+        return this._leafs
+            .map((leaf, index) => new Branch({ node: leaf, id: index }))
+    }
+
     /**
      * Returns all files not imported from any other file
      */
@@ -129,8 +134,9 @@ class Branch {
      * 
      * @param {DependencyTreeNode} node 
      */
-    constructor(node) {
+    constructor({ node, id }) {
         this._node = node
+        this._id = id
         this._nodesInCommonCache = new Map() // Cache for nodes in common for each branch
     }
 
