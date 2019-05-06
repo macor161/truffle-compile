@@ -31,7 +31,7 @@ class DependencyTree {
         this._files[fileNode.path] = fileNode
         this._fillInDependencies(fileNode)
         this._updateFilesWithMissingDependencies(fileNode)
-        this._updateLeafs(fileNode.dependencies)
+        this._updateLeafs()
     }
 
     /**
@@ -59,13 +59,13 @@ class DependencyTree {
             .concat([newFile])
             .filter(file => file.isMissingDependencies())
 
-        if (newFile.children.length > 0)
+        if (newFile.isLeaf())
             this._leafs.push(newFile)
     }
 
-    _updateLeafs(dependencies) {
+    _updateLeafs() {
         this._leafs = this._leafs
-            .filter(leaf => !dependencies.includes(leaf))
+            .filter(node => node.isLeaf())
     }
 }
 
@@ -160,4 +160,4 @@ function unique(items) {
 
 
 
-module.exports = { DependencyTree, DependencyTreeNode }
+module.exports = { DependencyTree, DependencyTreeNode, Branch }
