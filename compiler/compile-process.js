@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // TODO: Fix v8-compile-cache used with child_process.fork
 require('v8-compile-cache')
-const processId = process.argv[2] || 0
 require('../setup-debug')
+const processId = process.argv[2] || 0
 const debug = require('debug')(`compile-process-${processId}`)
+
 debug('loading process')
 preLoadDependencies()
 

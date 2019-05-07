@@ -34,6 +34,9 @@ class DependencyTree {
         this._updateLeafs()
     }
 
+    /**
+     * @returns {Branch[]}
+     */
     getBranches() {
         return this._leafs
             .map((leaf, index) => new Branch({ node: leaf, id: index }))
@@ -140,15 +143,20 @@ class Branch {
         this._nodesInCommonCache = new Map() // Cache for nodes in common for each branch
     }
 
+    getId() {
+        return this._id
+    }
+
     getNodes() {
         return this._node.getAllDependencies()
+            .concat([this._node])
     }
 
     nodesInCommon(branch) {
         if (!this._nodesInCommonCache.has(branch)) {
             const branchNodes = branch.getNodes()
 
-            const nodesInCommon = this._node.getAllDependencies()
+            const nodesInCommon = this.getNodes()
                 .filter(node => branchNodes.includes(node))
 
             this._nodesInCommonCache.set(branch, nodesInCommon)
