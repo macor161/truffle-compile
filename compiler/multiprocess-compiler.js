@@ -5,6 +5,7 @@ const cpus = os.cpus()
 //const cpus = [1, 2]
 const Worker = require('./worker')
 const workers = initWorkers()
+const { dispatchWork } = require('./dispatch-work')
 
 module.exports = function(solcStandardInput) {
 
@@ -38,8 +39,10 @@ module.exports = function(solcStandardInput) {
             p: 2
         }
 
-        const dependencyTree = new DependencyTree()
 
+        debug('Generating dependency tree')
+
+        const dependencyTree = new DependencyTree()
         
         for (const key in solcStandardInput.sources) {
             //debug(`adding ${key} to dep tree`)
@@ -59,9 +62,25 @@ module.exports = function(solcStandardInput) {
             debug(`${file.path} deps: %o`, file.dependencies.map(a => a.path))
         }*/
 
+
+        /*
         dependencyTree.getLeafs().forEach((node, index) => {
             workers[index % cpus.length].addSource(node)
-        })
+        })*/
+
+        debug('creating work batches')
+        //const batches = dispatchWork(dependencyTree, cpus.length)
+        const batches = dispatchWork(dependencyTree, 1)
+
+        debug('dispatching batches to workers')
+        for (const [i] of batches.entries()) {
+            const batch = batches[i]
+            const worker = workers[i]
+            debug(`batch ${i} load: ${batch.workload()}`)
+
+            for (const branch of batch.getBranches())
+                worker.addSource(branch)
+        }
     
         debug(`sending input ${new Date().toISOString()}`)
 
@@ -74,7 +93,9 @@ module.exports = function(solcStandardInput) {
             .then(results => {
                 debug('merging results')
                 let result = results[0]
-                for(let i = 1; i < results.length; i++) {                    
+                //debug(`results ${0}: %o`, results[0])
+                for(let i = 1; i < results.length; i++) {  
+                    //debug(`results ${i}: %o`, results[i])                  
                     result.sources = { ...result.sources, ...(results[i].sources) }
 
                     if (results[i].errors)

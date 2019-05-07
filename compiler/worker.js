@@ -31,10 +31,11 @@ module.exports = class Worker {
         this.isChildProcess = childProcess
         this.compilerOptions = compilerOptions
         this.id = id
+        this.branches = []
         this.input = {
             language: 'Solidity',
             settings: DEFAULT_OPTIONS.settings,
-            sources: {}
+            sources: null
         }
         this._debug = require('debug')(`worker-${id}`)
         this._compile = loadCompile(this._debug)
@@ -48,17 +49,17 @@ module.exports = class Worker {
 
     addSource(sourceNode) {
         //debug('adding sourceNode %o', sourceNode.path)
-        this.input.sources = sourceNode.getAllDependencies()
-            .concat([{ path: sourceNode.path, content: sourceNode.content }])
+        this.branches.push(sourceNode)
+        this.input.sources = sourceNode.getNodes()
             .reduce((acc, dep) => {
                 acc[dep.path] = { content: dep.content }
                 return acc
-            }, this.input.sources)
+            }, this.input.sources || {})
 
         //debug('sources: %o', this.input.sources)
     }
 
-    hasSources() { return this.input.sources != {} }
+    hasSources() { return this.input.sources != null }
 
     close() {
         if (this._process && !this._process.killed)
@@ -68,7 +69,7 @@ module.exports = class Worker {
     async compile(compilerOptions = DEFAULT_OPTIONS) {
         this._debug('compiling %o', Object.keys(this.input.sources))
         this._debug(`time ${new Date().toISOString()}`)
-        //require('fs').writeFileSync(`./newinput-${this.id}.json`, JSON.stringify(this.input))
+        require('fs').writeFileSync(`./newinput-${this.id}.json`, JSON.stringify(this.input))
 
         const result = this.isChildProcess
             ? await this._sendInputToProcess()
