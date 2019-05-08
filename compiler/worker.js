@@ -1,4 +1,7 @@
 const loadCompile = require('./compile')
+const { spawn } = require('child_process')
+const path = require('path')
+const JSONStream = require('JSONStream')
 
 const DEFAULT_OPTIONS = {
     settings: {
@@ -38,12 +41,12 @@ module.exports = class Worker {
             sources: null
         }
         this._debug = require('debug')(`worker-${id}`)
-        this._compile = loadCompile(this._debug)
 
         if (childProcess) {
+            /*
             const { fork } = require('child_process')
-            const path = require('path')
-            this._process = fork(path.join(__dirname, 'compile-process.js'), [id])
+            
+            this._process = fork(path.join(__dirname, 'compile-process.js'), [id])*/
         }
     }
 
@@ -69,24 +72,37 @@ module.exports = class Worker {
     async compile(compilerOptions = DEFAULT_OPTIONS) {
         this._debug('compiling %o', Object.keys(this.input.sources))
         this._debug(`time ${new Date().toISOString()}`)
-        require('fs').writeFileSync(`./newinput-${this.id}.json`, JSON.stringify(this.input))
+        //require('fs').writeFileSync(`./newinput-${this.id}.json`, JSON.stringify(this.input))
 
-        const result = this.isChildProcess
-            ? await this._sendInputToProcess()
-            : await this._compile(this.input, compilerOptions)
-
+        const result = await this._sendInputToProcess()
         this._debug('compile done')
         return result
     }
 
     _sendInputToProcess() {
-        return new Promise((res, rej) => {             
-            this._process.on('message', message => {    
+        return new Promise((res, rej) => {    
+            const solc = spawn(path.join(__dirname,'../solc/solc-0.5.0'), ['--standard-json'])
+            let result
+            solc.stdin.setEncoding('utf-8')         
+
+            solc.stdout
+                .pipe(JSONStream.parse())
+                .on('data', (data) => {
+                    console.log('received data')
+                    result = data
+                })
+          
+            solc.stderr.on('data', (data) => {
+                console.log(`stderr: ${data}`);
+            });
+            
+            solc.on('close', (code) => {
                 this._debug(`result received ${new Date().toISOString()}`)
-                res(message.result)            
-                this._process.kill()
-            })
-            this._process.send({ input: this.input })
+                res(result)
+            }) 
+            
+            solc.stdin.write(JSON.stringify(this.input) + "\n")
+            solc.stdin.end()    
         })
     }
 }
