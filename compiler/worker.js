@@ -70,7 +70,8 @@ module.exports = class Worker {
     }
 
     async compile(compilerOptions = DEFAULT_OPTIONS) {
-        this._debug('compiling %o', Object.keys(this.input.sources))
+        //this._debug('compiling %o', Object.keys(this.input.sources))
+        this._debug('compiling %o', this.input.sources)
         this._debug(`time ${new Date().toISOString()}`)
         //require('fs').writeFileSync(`./newinput-${this.id}.json`, JSON.stringify(this.input))
 
@@ -88,7 +89,7 @@ module.exports = class Worker {
             solc.stdout
                 .pipe(JSONStream.parse())
                 .on('data', (data) => {
-                    console.log('received data')
+                    //console.log('received data')
                     result = data
                 })
           

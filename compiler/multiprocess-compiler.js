@@ -2,10 +2,13 @@ const debug = require("debug")("multiprocess-compiler")
 const os = require('os')
 const { DependencyTree } = require('../dependency-tree')
 const cpus = os.cpus()
-//const cpus = [1, 2]
+//const cpus = [1]
 const Worker = require('./worker')
 const workers = initWorkers()
+const { basename } = require('path')
 const { dispatchWork } = require('./dispatch-work')
+const Multispinner = require('multispinner')
+const chalk = require('chalk')
 
 module.exports = function(solcStandardInput) {
 
@@ -36,14 +39,37 @@ module.exports = function(solcStandardInput) {
             for (const branch of batch.getBranches())
                 worker.addSource(branch)
         }
-    
+
+        const compilers = workers
+            .filter(worker => worker.hasSources())
+
+        const f = ['Roles.sol', 'Roles.sol', 'IERC20.sol', 'SafeMath.sol', 'Address.sol', 'SafeERC20.sol', 'ReentrancyGuard.sol', 'Crowdsale.sol', 'TimedCrowdsale.sol']
+
+        const spinners = compilers
+            .reduce((acc, compiler, i) => ({ 
+                ...acc, 
+                [i]: `${chalk.white(`Worker #${i+1} :`)} [${unique(Object.keys(compiler.input.sources))
+                    .map(key => basename(key))
+                    .filter((name, i) => i === 0 || !f.includes(name))
+                    .join(', ')
+                    .substring(0,60) + '...'}]`
+            }), {})
+
+        console.log('')
+        const multispinner = new Multispinner(spinners, {
+            autoStart: true,
+            indent: 1,
+            color: {
+                incomplete: 'gray'
+            }
+        })
+
         debug(`sending input ${new Date().toISOString()}`)
 
 
 
-        Promise.all(workers
-                .filter(worker => worker.hasSources())
-                .map(worker => worker.compile())
+        Promise.all(compilers
+                .map((worker, i) => worker.compile().then(result => { multispinner.success(i); return result }))
             )
             .then(results => {
                 debug('merging results')
@@ -59,7 +85,7 @@ module.exports = function(solcStandardInput) {
                     result.contracts = { ...result.contracts, ...(results[i].contracts) }
                 }
                 debug('results merged')
-                res(result) 
+                res(result)
                 workers.forEach(worker => worker.close())
             })
    
@@ -78,4 +104,8 @@ function initWorkers() {
                 ? new Worker({ childProcess: false, id: index })
                 : new Worker({ childProcess: true, id: index })
         })
+}
+
+function unique(items) {
+    return Array.from(new Set(items))
 }
