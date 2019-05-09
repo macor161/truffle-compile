@@ -48,11 +48,11 @@ module.exports = function(solcStandardInput) {
         const spinners = compilers
             .reduce((acc, compiler, i) => ({ 
                 ...acc, 
-                [i]: `${chalk.white(`Worker #${i+1} :`)} [${unique(Object.keys(compiler.input.sources))
+                [i]: `Compiler #${i+1} ${chalk.gray(`[${unique(Object.keys(compiler.input.sources))
                     .map(key => basename(key))
                     .filter((name, i) => i === 0 || !f.includes(name))
                     .join(', ')
-                    .substring(0,60) + '...'}]`
+                    .substring(0,60) + '...'}]`)}`
             }), {})
 
         console.log('')
@@ -60,7 +60,7 @@ module.exports = function(solcStandardInput) {
             autoStart: true,
             indent: 1,
             color: {
-                incomplete: 'gray'
+                incomplete: 'white'
             }
         })
 
